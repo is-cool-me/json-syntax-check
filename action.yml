@@ -1,0 +1,19 @@
+name: 'json-syntax-check ICME'
+description: 'Simply check JSON syntax'
+author: 'light <admin@lighthosting.eu.org>'
+inputs:
+  pattern:
+    description: 'File regex pattern to check syntax'
+    required: true
+    default: '\\.json$'
+outputs:
+  failed_files:
+    description: 'File paths whose syntax check failed'
+runs:
+  using: 'docker'
+  image: 'Dockerfile'
+  args:
+    - ${{ inputs.pattern }}
+branding:
+  icon: bell
+  color: green

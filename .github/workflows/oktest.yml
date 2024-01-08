@@ -1,0 +1,13 @@
+name: JSON check (demo)
+
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: json-syntax-check
+        uses: ./
+        with:
+          pattern: "ok_[0-9]+\\.json$"

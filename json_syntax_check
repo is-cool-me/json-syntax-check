@@ -1,0 +1,81 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require 'find'
+require 'json'
+
+# JSON checker calling module
+module JSONChecker
+  def self.run(argv)
+    patterns = argv
+    checker = Checker.new(patterns)
+    failures = checker.run
+    File.open(ENV.fetch('GITHUB_OUTPUT', './test_output'), 'a') do |f|
+      f.puts "failed_files=#{JSON.dump(failures.map(&:file))}"
+    end
+    if failures.empty?
+      puts "No file has JSON syntax error (of #{checker.files.length} files)"
+    else
+      puts "Files below has/have JSON syntax error (of #{checker.files.length} files)"
+      failures.each do |f|
+        puts "- #{f.file}: #{f.hint}"
+      end
+    end
+    failures.length
+  end
+end
+
+# Syntax failure
+class Failure
+  attr_reader :file, :hint
+
+  def initialize(file, hint)
+    @file = file
+    @hint = hint
+  end
+end
+
+# JSON checker class
+class Checker
+  def initialize(patterns)
+    @patterns = patterns.map { |pat| Regexp.compile(pat) }
+    @files = nil
+    @base = ENV.fetch('BASE', ENV.fetch('GITHUB_WORKSPACE'))
+    @debug = ENV.fetch('DEBUG', '0') != '0'
+  end
+
+  def files
+    return @files unless @files.nil?
+
+    @files = []
+    Find.find(@base) do |file|
+      next unless File.file?(file)
+
+      next unless @patterns.any? { |pat| pat.match?(file) }
+
+      @files << file
+    end
+    puts "base=#{@base} ptns=#{@patterns} files=#{@files}" if @debug
+
+    @files
+  end
+
+  def run
+    failures = files.map { |f| validate_json(f) }
+    failures.compact
+  end
+
+  def validate_json(file)
+    JSON.parse(File.read(file))
+  rescue JSON::ParserError => e
+    hint = e.message.lines.first.chomp unless e.message.lines.nil?
+    hint += "' ..." if e.message.lines.length > 1
+
+    hint ||= 'Unknown JSON parse error'
+    Failure.new(file, hint)
+  else
+    nil
+  end
+end
+
+exit JSONChecker.run(ARGV)
